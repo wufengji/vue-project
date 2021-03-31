@@ -1,5 +1,5 @@
-import { login, logout, getInfo } from '@/api/user'
-import { getToken, setToken, removeToken } from '@/utils/auth'
+import { login, logout, getInfo,refreshToken } from '@/api/user'
+import { getToken, setToken, removeToken,setRefreshToken,getRefreshToken,removeRefreshToken } from '@/utils/auth'
 import router, { resetRouter } from '@/router'
 
 const state = {
@@ -35,8 +35,9 @@ const actions = {
     return new Promise((resolve, reject) => {
       login({ username: username.trim(), password: password }).then(response => {
         const { data } = response
-        commit('SET_TOKEN', data.token)
-        setToken(data.token)
+        commit('SET_TOKEN', data.accessToken)
+        setToken(data.accessToken,data.expiration)
+        setRefreshToken(data.refreshToken,2*data.expiration)
         resolve()
       }).catch(error => {
         reject(error)
@@ -44,28 +45,38 @@ const actions = {
     })
   },
 
+  refreshToken({ commit }) {
+    return new Promise((resolve, reject) => {
+      refreshToken({ refreshToken:getRefreshToken()}).then(response => {
+        const { data } = response
+        commit('SET_TOKEN', data)
+        setToken(data,data.expiration)
+        resolve()
+      }).catch(error => {
+        reject(error)
+      })
+    })
+  },
+  
+
   // get user info
   getInfo({ commit, state }) {
     return new Promise((resolve, reject) => {
-      getInfo(state.token).then(response => {
+      getInfo().then(response => {
         const { data } = response
-
         if (!data) {
           reject('Verification failed, please Login again.')
         }
 
-        const { roles, name, avatar, introduction } = data
-
         // roles must be a non-empty array
-        if (!roles || roles.length <= 0) {
-          reject('getInfo: roles must be a non-null array!')
-        }
-
-        commit('SET_ROLES', roles)
-        commit('SET_NAME', name)
-        commit('SET_AVATAR', avatar)
-        commit('SET_INTRODUCTION', introduction)
-        resolve(data)
+        // if (!roles || roles.length <= 0) {
+        //   reject('getInfo: roles must be a non-null array!')
+        // }
+        commit('SET_ROLES', data.router)
+        commit('SET_NAME', data.username)
+        commit('SET_AVATAR', "")
+        commit('SET_INTRODUCTION', "")
+        resolve(data.router)
       }).catch(error => {
         reject(error)
       })
@@ -79,10 +90,9 @@ const actions = {
         commit('SET_TOKEN', '')
         commit('SET_ROLES', [])
         removeToken()
+        removeRefreshToken()
         resetRouter()
 
-        // reset visited views and cached views
-        // to fixed https://github.com/PanJiaChen/vue-element-admin/issues/2485
         dispatch('tagsView/delAllViews', null, { root: true })
 
         resolve()
