@@ -37,7 +37,7 @@ const actions = {
         const { data } = response
         commit('SET_TOKEN', data.accessToken)
         setToken(data.accessToken,data.expiration)
-        setRefreshToken(data.refreshToken,2*data.expiration)
+        setRefreshToken(data.refreshToken)
         resolve()
       }).catch(error => {
         reject(error)
